@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-CN" itemscope itemtype="http://schema.org/WebPage">
+<head>
+<meta charset="UTF-8">
+<meta name="referrer" content="origin-when-cross-origin">
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+<meta http-equiv="x-ua-compatible" content="IE=edge">
+<meta name="applicable-device" content="pc,mobile">
+<meta name="renderer" content="webkit">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+
+<link rel="profile" href="http://gmpg.org/xfn/11">
+<link rel="pingback" href="https://c7sky.com/xmlrpc.php">
+
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="icon" sizes="192x192" href="/favicons/192.png">
+<link rel="icon" sizes="128x128" href="/favicons/128.png">
+<link rel="icon" sizes="any" href="/favicons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/favicons/180.png">
+<link rel="mask-icon" href="/favicons/icon.svg" color="#00BCD4">
+
+<meta name="theme-color" content="#00BCD4">
+<meta name="msapplication-navbutton-color" content="#00BCD4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<meta name="application-name" content="小影志">
+<meta name="apple-mobile-web-app-title" content="小影志">
+
+<meta property="og:type"        content="article" />
+<meta property="og:url"         content="https://c7sky.com/building-etcd-cluster.html">
+<meta property="og:title"       content="搭建 etcd 集群">
+<meta property="og:description" content="介绍 etcd 是一个分布式一致性 K-V 存储系统，可用于服务注册发现与共享配置，具有以下优点： 简单：相比于晦涩难懂的 Paxos 算法，etcd 基于相对简单且易实现的 Raft 算法实现一致性…">
+<meta property="og:image"       content="https://img.c7sky.com/2018/06/etcd_banner.png">
+
+<title>搭建 etcd 集群 | 小影志</title>
+
+<!-- All In One SEO Pack 3.6.2[1933,1956] -->
+<meta name="description"  content="etcd 是一个分布式一致性 K-V 存储系统，可用于服务注册发现与共享配置，具有以下优点…" />
+
+<meta name="keywords"  content="docker,技术笔记" />
+
+<!-- All In One SEO Pack -->
+<link rel='dns-prefetch' href='//cdn.c7sky.com' />
+<link rel='dns-prefetch' href='//cdn.jsdelivr.net' />
+<link rel="alternate" type="application/rss+xml" title="小影志 &raquo; Feed" href="https://c7sky.com/feed" />
+<link rel="alternate" type="application/rss+xml" title="小影志 &raquo; 评论Feed" href="https://c7sky.com/comments/feed" />
+<link rel="alternate" type="application/rss+xml" title="小影志 &raquo; 搭建 etcd 集群评论Feed" href="https://c7sky.com/building-etcd-cluster.html/feed" />
+<link rel='stylesheet' id='material-icons-css'  href='https://cdn.jsdelivr.net/gh/google/material-design-icons@2.2.3/iconfont/material-icons.css' type='text/css' media='all' />
+<link rel='stylesheet' id='c7v5-css'  href='//cdn.c7sky.com/c7v5/style.css?ver=190604' type='text/css' media='all' />
+<!--[if lt IE 9]>
+<script type='text/javascript' src='//cdn.c7sky.com/c7v5/js/vendor/html5shiv.min.js?ver=3.7.3'></script>
+<![endif]-->
+<link rel='prev' title='获取 WordPress 菜单的树形结构数组（对象）' href='https://c7sky.com/get-tree-like-array-of-wordpress-nav-menu.html' />
+<link rel='next' title='Docker 1.12 配置 direct-lvm' href='https://c7sky.com/docker-1-12-config-direct-lvm.html' />
+<link rel="canonical" href="https://c7sky.com/building-etcd-cluster.html" />
+		<script type="text/javascript">
+			window._wpemojiSettings = {"baseUrl":"https:\/\/twemoji.maxcdn.com\/2\/72x72\/","ext":".png","svgUrl":"https:\/\/cdn.jsdelivr.net\/npm\/twemoji@11.2.0\/2\/svg\/","svgExt":".svg","source":{"concatemoji":"https:\/\/c7sky.com\/wp-includes\/js\/wp-emoji-release.min.js?ver=4.9.8"}};
+			!function(a,b,c){function d(a,b){var c=String.fromCharCode;l.clearRect(0,0,k.width,k.height),l.fillText(c.apply(this,a),0,0);var d=k.toDataURL();l.clearRect(0,0,k.width,k.height),l.fillText(c.apply(this,b),0,0);var e=k.toDataURL();return d===e}function e(a){var b;if(!l||!l.fillText)return!1;switch(l.textBaseline="top",l.font="600 32px Arial",a){case"flag":return!(b=d([55356,56826,55356,56819],[55356,56826,8203,55356,56819]))&&(b=d([55356,57332,56128,56423,56128,56418,56128,56421,56128,56430,56128,56423,56128,56447],[55356,57332,8203,56128,56423,8203,56128,56418,8203,56128,56421,8203,56128,56430,8203,56128,56423,8203,56128,56447]),!b);case"emoji":return b=d([55358,56760,9792,65039],[55358,56760,8203,9792,65039]),!b}return!1}function f(a){var c=b.createElement("script");c.src=a,c.defer=c.type="text/javascript",b.getElementsByTagName("head")[0].appendChild(c)}var g,h,i,j,k=b.createElement("canvas"),l=k.getContext&&k.getContext("2d");for(j=Array("flag","emoji"),c.supports={everything:!0,everythingExceptFlag:!0},i=0;i<j.length;i++)c.supports[j[i]]=e(j[i]),c.supports.everything=c.supports.everything&&c.supports[j[i]],"flag"!==j[i]&&(c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&c.supports[j[i]]);c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&!c.supports.flag,c.DOMReady=!1,c.readyCallback=function(){c.DOMReady=!0},c.supports.everything||(h=function(){c.readyCallback()},b.addEventListener?(b.addEventListener("DOMContentLoaded",h,!1),a.addEventListener("load",h,!1)):(a.attachEvent("onload",h),b.attachEvent("onreadystatechange",function(){"complete"===b.readyState&&c.readyCallback()})),g=c.source||{},g.concatemoji?f(g.concatemoji):g.wpemoji&&g.twemoji&&(f(g.twemoji),f(g.wpemoji)))}(window,document,window._wpemojiSettings);
+		</script>
+		</head>
+
+<body class="post-template-default single single-post postid-1148 single-format-standard">
+
+<!--[if lt IE 9]><div id="browsehappy">你正在使用的浏览器版本过低，请<a href="/upgrade-your-browser/" target="_blank" ><strong>升级你的浏览器</strong></a>，获得最佳的浏览体验！</div><![endif]-->
+
+
+<header id="header" role="banner" itemscope itemtype="http://schema.org/WPHeader">
+	<div id="site-branding">
+		<a href="https://c7sky.com" rel="home" data-track="Header,Click,Branding">
+			<svg id="logo" class="logo" viewBox="0 0 256 243.8" width="120" height="114" role="img"><path d="M256,0l-27.4,153.6c-10,40.1-38.9,72.1-76.1,85c36.9-60.3,46.6-196,46.6-196h-83.5c-38.6,0-69.3,39-69.3,79.7 s33.1,77,75.1,73.4c-4.6,17.9-11.4,34.7-19.4,48.1C44.5,236.5,0,184.9,0,122.4C0,54.8,52,0,116.2,0H256z" /></svg>
+			<h1 id="site-title" itemprop="name">小影志</h1>
+			<p id="site-description" itemprop="description">分享好东西</p>
+		</a>
+	</div><!-- #site-branding -->
+
+	<div id="navbar" class="unpinned">
+		<span class="mbtn mbtn-menu" title="导航菜单" data-track="Navbar,Click,M-Menu"></span>
+		<span class="mbtn mbtn-search" title="搜索" data-track="Navbar,Click,M-Search"></span>
+
+		<a class="brand" href="https://c7sky.com" title="小影志" data-track="Navbar,Click,Logo"><svg class="logo" viewBox="0 0 256 243.8" width="37" height="35" role="img"><path d="M256,0l-27.4,153.6c-10,40.1-38.9,72.1-76.1,85c36.9-60.3,46.6-196,46.6-196h-83.5c-38.6,0-69.3,39-69.3,79.7 s33.1,77,75.1,73.4c-4.6,17.9-11.4,34.7-19.4,48.1C44.5,236.5,0,184.9,0,122.4C0,54.8,52,0,116.2,0H256z" /></svg></a>
+
+				<nav id="nav" class="wp" role="navigation" itemscope itemtype="http://schema.org/SiteNavigationElement">
+			<ul id="site-menu" class="nav-menu"><li id="menu-item-1095" class="menu-item"><a href="https://c7sky.com/">首页</a></li>
+<li id="menu-item-659" class="menu-item"><a href="https://c7sky.com/category/wordpress">WordPress</a></li>
+<li id="menu-item-655" class="menu-item"><a href="https://c7sky.com/category/software">实用软件</a></li>
+<li id="menu-item-657" class="menu-item"><a href="https://c7sky.com/category/website">网站推介</a></li>
+<li id="menu-item-656" class="menu-item"><a href="https://c7sky.com/category/free">免费资源</a></li>
+<li id="menu-item-663" class="menu-item"><a href="https://c7sky.com/category/webdev">前端开发</a></li>
+<li id="menu-item-654" class="menu-item menu-item-has-children"><a href="#">更多</a>
+<ul class="sub-menu">
+	<li id="menu-item-658" class="menu-item"><a href="https://c7sky.com/category/design">设计美化</a></li>
+	<li id="menu-item-1007" class="menu-item"><a href="https://c7sky.com/category/tech">技术笔记</a></li>
+	<li id="menu-item-692" class="menu-item"><a href="https://c7sky.com/category/media">电影音乐</a></li>
+	<li id="menu-item-662" class="menu-item"><a href="https://c7sky.com/category/game">趣味游戏</a></li>
+	<li id="menu-item-664" class="menu-item"><a href="https://c7sky.com/category/fun">搞笑囧事</a></li>
+	<li id="menu-item-1009" class="menu-item"><a href="https://c7sky.com/category/misc/minutes">博客记录</a></li>
+</ul>
+</li>
+</ul>		</nav>
+		
+		<form id="search-form" action="https://c7sky.com" method="get" role="search" data-track-submit="Navbar,Submit,Search">
+			<label for="s" title="搜索" data-track="Navbar,Click,Search"></label>
+			<input type="search" placeholder="搜索…" name="s" id="s" required>
+			<input type="submit" class="search-submit" value="搜索">
+			<p class="popular-tags"><strong>热门标签：</strong><a href="https://c7sky.com/tag/%e5%a5%bd%e7%8e%a9" class="tag-cloud-link tag-link-120 tag-link-position-1" style="font-size: 8pt;" aria-label="好玩 (18个项目)">好玩</a>
+<a href="https://c7sky.com/tag/%e5%9b%be%e7%89%87" class="tag-cloud-link tag-link-79 tag-link-position-2" style="font-size: 8.7777777777778pt;" aria-label="图片 (19个项目)">图片</a>
+<a href="https://c7sky.com/tag/%e6%b5%8f%e8%a7%88%e5%99%a8" class="tag-cloud-link tag-link-109 tag-link-position-3" style="font-size: 8.7777777777778pt;" aria-label="浏览器 (19个项目)">浏览器</a>
+<a href="https://c7sky.com/tag/portable-software" class="tag-cloud-link tag-link-117 tag-link-position-4" style="font-size: 11.888888888889pt;" aria-label="绿色软件 (23个项目)">绿色软件</a>
+<a href="https://c7sky.com/tag/qq" class="tag-cloud-link tag-link-14 tag-link-position-5" style="font-size: 11.888888888889pt;" aria-label="QQ (23个项目)">QQ</a>
+<a href="https://c7sky.com/tag/wordpress%e6%8a%80%e5%b7%a7" class="tag-cloud-link tag-link-263 tag-link-position-6" style="font-size: 12.666666666667pt;" aria-label="WordPress技巧 (24个项目)">WordPress技巧</a>
+<a href="https://c7sky.com/tag/windows" class="tag-cloud-link tag-link-104 tag-link-position-7" style="font-size: 13.055555555556pt;" aria-label="Windows (25个项目)">Windows</a>
+<a href="https://c7sky.com/tag/%e6%95%99%e7%a8%8b" class="tag-cloud-link tag-link-37 tag-link-position-8" style="font-size: 17.333333333333pt;" aria-label="教程 (32个项目)">教程</a>
+<a href="https://c7sky.com/tag/wp" class="tag-cloud-link tag-link-105 tag-link-position-9" style="font-size: 18.888888888889pt;" aria-label="WordPress (35个项目)">WordPress</a>
+<a href="https://c7sky.com/tag/%e5%8e%9f%e5%88%9b" class="tag-cloud-link tag-link-70 tag-link-position-10" style="font-size: 22pt;" aria-label="原创 (43个项目)">原创</a></p>
+		</form>
+	</div><!-- #navbar -->
+
+	<div id="navbar-placeholder"></div><!-- #navbar-placeholder -->
+</header><!-- #header -->
+
+	<main id="main" role="main" itemprop="mainContentOfPage">
+		
+
+<script>
+if (typeof localStorage !== "undefined") {
+    (function adaptivePostCoverLocalColor(pic, style) {
+        var color = localStorage.getItem("pcc_" + (pic.indexOf("http") !== 0 ? location.protocol : "") + pic);
+        if (color) {
+            style = document.createElement("style");
+            style.rel = "stylesheet";
+            style.appendChild(document.createTextNode(".single .entry-header .inner { background-color: rgba(" + color + ",0.97) }"));
+            document.head.appendChild(style);
+        }
+    })("https://img.c7sky.com/2018/06/etcd_banner.png");
+}
+</script>
+
+<article id="post-1148" class="has-post-cover post format-standard hentry" itemscope itemtype="http://schema.org/BlogPosting" itemprop="blogPost">
+
+	<header class="entry-header" style="background-image:url(https://img.c7sky.com/2018/06/etcd_banner.png)">
+		<div class="inner">
+			<div class="wp">
+				<h1 class="entry-title" itemprop="name">搭建 etcd 集群</h1>				<div class="entry-meta">
+					<span class="cats" itemprop="keywords"><a href="https://c7sky.com/category/tech" rel="category tag">技术笔记</a></span><span class="slash"> / </span><time class="entry-date published" datetime="2018-06-06T23:54:28+00:00" itemprop="datePublished">2018-06-06</time><span class="slash"> / </span><a href="https://c7sky.com/building-etcd-cluster.html#comments" class="comments-link" ><span itemprop="commentCount">1</span> 条评论</a><span class="byline"><span class="author vcard"><a class="url fn" href="https://c7sky.com/author/cople" itemprop="author" rel="author">小影</a></span></span>				</div><!-- .entry-meta -->
+			</div>
+		</div>
+	</header><!-- .entry-header -->
+
+	<div class="entry-content wp" itemprop="articleBody">
+			<div class="post-cover" >
+		<img src="https://img.c7sky.com/2018/06/etcd_banner.png" itemprop="image" width="700" height="220" alt="" loading="lazy" />
+	</div>
+	<h2>介绍</h2>
+<p>etcd 是一个分布式一致性 K-V 存储系统，可用于服务注册发现与共享配置，具有以下优点：</p>
+<ol>
+<li>简单：相比于晦涩难懂的 Paxos 算法，etcd 基于相对简单且易实现的 Raft 算法实现一致性，并通过 gRPC 提供接口调用</li>
+<li>安全：支持 TLS 通信，并可以针对不同的用户进行对 key 的读写控制</li>
+<li>高性能：10,000/秒的写性能</li>
+</ol>
+<p><span id="more-1148"></span></p>
+<h2>一、环境准备</h2>
+<h3>1.1 机器信息</h3>
+<table>
+<thead>
+<tr>
+<th>主机名</th>
+<th>IP</th>
+<th>系统</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>node1</td>
+<td>172.29.150.202</td>
+<td>Centos 7.2</td>
+</tr>
+<tr>
+<td>node2</td>
+<td>172.29.150.203</td>
+<td>Centos 7.2</td>
+</tr>
+<tr>
+<td>node3</td>
+<td>172.29.150.204</td>
+<td>Centos 7.2</td>
+</tr>
+</tbody>
+</table>
+<h3>1.2 关闭防火墙及 SELinux</h3>
+<pre><code class="language-bash" lang="bash">systemctl stop iptables
+systemctl stop firewalld
+systemctl disable iptables
+systemctl disable firewalld
+vi /etc/selinux/config
+SELINUX=disable
+</code></pre>
+<h3>1.3 设置 hosts</h3>
+<pre><code class="language-bash" lang="bash">vim /etc/hosts
+172.29.150.202 node1
+172.29.150.203 node2
+172.29.150.204 node3
+</code></pre>
+<h3>1.4 创建用户</h3>
+<pre><code class="language-bash" lang="bash">useradd etcd -d /opt/platform/etcd -c "Etcd user" -r -s /sbin/nologin
+</code></pre>
+<h2>二、创建验证</h2>
+<h3>2.1 安装 CFSSL</h3>
+<pre><code class="language-bash" lang="bash">wget https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
+wget https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
+chmod +x cfssl_linux-amd64 cfssljson_linux-amd64
+mv cfssl_linux-amd64 /usr/local/bin/cfssl
+mv cfssljson_linux-amd64 /usr/local/bin/cfssljson
+</code></pre>
+<h3>2.2 创建 CA 证书配置，生成 CA 证书和私钥</h3>
+<p>先用 <code>cfssl</code> 命令生成包含默认配置的 <code>config.json</code> 和 <code>csr.json</code> 文件</p>
+<pre><code class="language-bash" lang="bash">mkdir /opt/ssl
+cd /opt/ssl
+cfssl print-defaults config &gt; config.json
+cfssl print-defaults csr &gt; csr.json
+</code></pre>
+<p>然后分别修改这两个文件为如下内容</p>
+<p>config.json</p>
+<pre><code class="language-json" lang="json">{
+  "signing": {
+    "default": {
+      "expiry": "87600h"
+    },
+    "profiles": {
+      "kubernetes": {
+        "usages": [
+            "signing",
+            "key encipherment",
+            "server auth",
+            "client auth"
+        ],
+        "expiry": "87600h"
+      }
+    }
+  }
+}
+
+</code></pre>
+<dl>
+<dt>ca-config.json：</dt>
+<dd>可以定义多个 profiles，分别指定不同的过期时间、使用场景等参数；后续在签名证书时使用某个 profile；</dd>
+<dt>signing：</dt>
+<dd>表示该证书可用于签名其它证书；生成的 ca.pem 证书中 CA=TRUE；</dd>
+<dt>server auth：</dt>
+<dd>表示 Client 可以用该 CA 对 Server 提供的证书进行验证；</dd>
+<dt>client auth：</dt>
+<dd>表示 Server 可以用该 CA 对 Client 提供的证书进行验证；</dd>
+</dl>
+<p>csr.json</p>
+<pre><code class="language-json" lang="json">{
+  "CN": "kubernetes",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CN",
+      "ST": "Wuhan",
+      "L": "Hubei",
+      "O": "k8s",
+      "OU": "System"
+    }
+  ]
+}
+</code></pre>
+<dl>
+<dt>CN：</dt>
+<dd>Common Name，kube-apiserver 从证书中提取该字段作为请求的用户名（User Name）；浏览器使用该字段验证网站是否合法；</dd>
+<dt>O：</dt>
+<dd>Organization，kube-apiserver 从证书中提取该字段作为请求用户所属的组（Group）；</dd>
+</dl>
+<p>生成 CA 证书和私钥</p>
+<pre><code class="language-bash" lang="bash">cd /opt/ssl
+cfssl gencert -initca csr.json | cfssljson -bare ca
+</code></pre>
+<p>CA 有关证书列表如下：</p>
+<pre><code class="language-bash" lang="bash">[root@k8s-console ssl]# tree
+.
+├── ca.csr
+├── ca-key.pem
+├── ca.pem
+├── config.json
+└── csr.json
+</code></pre>
+<h3>2.3 创建 etcd 证书配置，生成 etcd 证书和私钥</h3>
+<p>在 <code>/opt/ssl</code> 下添加文件 <code>etcd-csr.json</code>，内容如下</p>
+<pre><code class="language-json" lang="json">{
+  "CN": "etcd",
+  "hosts": [
+    "127.0.0.1",
+    "172.29.150.202",
+    "172.29.150.203",
+    "172.29.150.204"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CN",
+      "ST": "Shanghai",
+      "L": "Shanghai",
+      "O": "etcd",
+      "OU": "Etcd Security"
+    }
+  ]
+}
+</code></pre>
+<p>生成 etcd 证书和密钥</p>
+<pre><code class="language-bash" lang="bash">cd /opt/ssl
+cfssl gencert -ca=/opt/ssl/ca.pem \
+-ca-key=/opt/ssl/ca-key.pem \
+-config=/opt/ssl/config.json \
+-profile=kubernetes etcd-csr.json | cfssljson -bare etcd</code></pre>
+<p>etcd 有关证书证书列表如下</p>
+<pre><code class="language-bash" lang="bash">ls etcd*
+etcd.csr  etcd-csr.json  etcd-key.pem  etcd.pem
+</code></pre>
+<h3>2.4 证书分发</h3>
+<pre><code class="language-bash" lang="bash">for IP in `seq 202 204`;do
+    scp scp ca*.pem etcd*.pem root@172.29.150.$IP:/opt/ssl
+done
+</code></pre>
+<p>给证书读权限</p>
+<pre><code class="language-bash" lang="bash">chmod 644 /opt/ssl/*
+</code></pre>
+<h2>三、安装 etcd</h2>
+<h3>3.1 在三台上都安装 etcd</h3>
+<pre><code class="language-bash" lang="bash">tar -xvf etcd-v3.3.4-linux-amd64.tar.gz
+cd etcd-v3.3.4-linux-amd64
+cp mv etcd* /opt/platform/etcd/
+cd ..
+rm -rf etcd-v3.3.4-linux-amd64
+</code></pre>
+<h3>3.2 添加 etcd 配置</h3>
+<p>注意：不同机器的配置不一样 <code>ETCD_NAME</code>、<code>ETCD_ADVERTISE_CLIENT_URLS</code>、<code>ETCD_INITIAL_ADVERTISE_PEER_URLS</code>。</p>
+<pre><code class="language-bash" lang="bash">vim /opt/platform/etcd/etcd.conf
+</code></pre>
+<pre><code class="language-bash" lang="bash"># [member]
+ETCD_NAME=etcd1
+ETCD_DATA_DIR=/opt/platform/etcd/data
+ETCD_LISTEN_PEER_URLS=https://0.0.0.0:2380
+ETCD_LISTEN_CLIENT_URLS=https://0.0.0.0:2379
+
+# [cluster]
+ETCD_ADVERTISE_CLIENT_URLS=https://172.29.150.202:2379
+ETCD_INITIAL_ADVERTISE_PEER_URLS=https://172.29.150.202:2380
+ETCD_INITIAL_CLUSTER="etcd1=https://172.29.150.202:2380,etcd2=https://172.29.150.203:2380,etcd3=https://172.29.150.204:2380"
+ETCD_INITIAL_CLUSTER_STATE=new
+ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+
+# [security]
+ETCD_CERT_FILE="/opt/ssl/etcd.pem"
+ETCD_KEY_FILE="/opt/ssl/etcd-key.pem"
+ETCD_CLIENT_CERT_AUTH="true"
+ETCD_TRUSTED_CA_FILE="/opt/ssl/ca.pem"
+ETCD_AUTO_TLS="true"
+ETCD_PEER_CERT_FILE="/opt/ssl/etcd.pem"
+ETCD_PEER_KEY_FILE="/opt/ssl/etcd-key.pem"
+ETCD_PEER_CLIENT_CERT_AUTH="true"
+ETCD_PEER_TRUSTED_CA_FILE="/opt/ssl/ca.pem"
+ETCD_PEER_AUTO_TLS="true"
+</code></pre>
+<p>配置说明</p>
+<dl>
+<dt>ETCD_NAME:</dt>
+<dd>etcd 集群中的节点名，这里可以随意，可区分且不重复就行。</dd>
+<dt>ETCD_LISTEN_PEER_URLS:</dt>
+<dd>监听的用于节点之间通信的 URL，可监听多个，集群内部将通过这些 URL 进行数据交互（如选举、数据同步等）。</dd>
+<dt>ETCD_LISTEN_CLIENT_URLS:</dt>
+<dd>监听的用于客户端通信的 URL，同样可以监听多个。</dd>
+<dt>ETCD_ADVERTISE_CLIENT_URLS:</dt>
+<dd>建议使用的客户端通信 URL，该值用于 etcd 代理或 etcd 成员与 etcd 节点通信。</dd>
+<dt>ETCD_INITIAL_ADVERTISE_PEER_URLS:</dt>
+<dd>建议用于节点之间通信的 URL，节点间将以该值进行通信。</dd>
+<dt>ETCD_INITIAL_CLUSTER:</dt>
+<dd>也就是集群中所有的 initial--advertise-peer-urls 的合集。</dd>
+<dt>ETCD_INITIAL_CLUSTER_STATE:</dt>
+<dd>新建集群的标志。</dd>
+<dt>ETCD_INITIAL_CLUSTER_TOKEN:</dt>
+<dd>节点的 token 值，设置该值后集群将生成唯一 ID，并为每个节点也生成唯一 ID，当使用相同配置文件再启动一个集群时，只要该 token 值不一样，etcd 集群就不会相互影响。</dd>
+</dl>
+<h3>3.3 添加系统服务</h3>
+<pre><code class="language-bash" lang="bash">vim /usr/lib/systemd/system/etcd.service
+</code></pre>
+<pre><code class="language-ini" lang="ini">[Unit]
+Description=Etcd Service
+After=network.target
+
+[Service]
+Environment=ETCD_DATA_DIR
+EnvironmentFile=-/opt/platform/etcd/etcd.conf
+Type=notify
+User=etcd
+WorkingDirectory=/opt/platform/etcd
+PermissionsStartOnly=true
+ExecStart=/usr/bin/etcd
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<h3>3.4 创建 data 目录，然后启动 etcd 服务</h3>
+<pre><code class="language-bash" lang="bash">mkdir -p /opt/platform/etcd/data &amp;&amp; chown etcd:etcd -R /opt/platform/etcd
+systemctl enable etcd.service &amp;&amp; systemctl start etcd.service
+</code></pre>
+<h2>四、验证 etcd 集群状态</h2>
+<p>查看 etcd 集群状态</p>
+<pre><code class="language-bash" lang="bash">etcdctl \
+  --endpoints=https://172.29.150.202:2379 \
+  --cert-file=/opt/ssl/etcd.pem \
+  --ca-file=/opt/ssl/ca.pem \
+  --key-file=/opt/ssl/etcd-key.pem \
+  cluster-health
+
+member 35b8f6acff2c4453 is healthy: got healthy result from https://172.29.150.202:2379
+member 718a387d5439a839 is healthy: got healthy result from https://172.29.150.203:2379
+member 75b9609afd556afb is healthy: got healthy result from https://172.29.150.204:2379
+cluster is healthy
+</code></pre>
+<p>查看 etcd 集群成员</p>
+<pre><code class="language-bash" lang="bash">etcdctl \
+  --endpoints=https://172.29.150.202:2379 \
+  --cert-file=/opt/ssl/etcd.pem \
+  --ca-file=/opt/ssl/ca.pem \
+  --key-file=/opt/ssl/etcd-key.pem \
+  member list
+
+35b8f6acff2c4453: name=etcd1 peerURLs=https://172.29.150.202:2380 clientURLs=https://172.29.150.202:2379 isLeader=true
+718a387d5439a839: name=etcd2 peerURLs=https://172.29.150.203:2380 clientURLs=https://172.29.150.203:2379 isLeader=false
+75b9609afd556afb: name=etcd3 peerURLs=https://172.29.150.204:2380 clientURLs=https://172.29.150.204:2379 isLeader=false
+</code></pre>
+<h2>五、参考链接</h2>
+<p><a class="url" href="https://kevinguo.me/2017/09/22/manual-deploy-kubernetes/#验证etcd-集群状态" target="_blank" rel="noopener">https://kevinguo.me/2017/09/22/manual-deploy-kubernetes/#验证etcd-集群状态</a><br />
+<a class="url" href="https://coreos.com/etcd/docs/latest/op-guide/configuration.html" target="_blank" rel="noopener">https://coreos.com/etcd/docs/latest/op-guide/configuration.html</a><br />
+<a class="url" href="http://cizixs.com/2016/08/02/intro-to-etcd" target="_blank" rel="noopener">http://cizixs.com/2016/08/02/intro-to-etcd</a></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>P.S. 本文是帮朋友代为发表，非博主所写。</p>
+	</div><!-- .entry-content -->
+
+	<div class="entry-footer wp">
+		<span class="tag-links"><a href="https://c7sky.com/tag/docker" rel="tag" itemprop="keywords">Docker</a></span>			<div class="social-share">
+		<a data-service="weibo"     data-track="Share,Click,Weibo"     title="分享到新浪微博"></a>
+		<a data-service="wechat"    data-track="Share,Click,WeChat"    title="分享到微信"></a>
+		<a data-service="qq"        data-track="Share,Click,QQ"        title="分享给QQ好友"></a>
+		<a data-service="qzone"     data-track="Share,Click,Qzone"     title="分享到QQ空间"></a>
+		<a data-service="yingxiang" data-track="Share,Click,YingXiang" title="分享到印象笔记"></a>
+		<a data-service="linkedin"  data-track="Share,Click,LinkedIn"  title="分享到 LinkedIn"></a>
+		<a data-service="webshare"  data-track="Share,Click,WebShare"  title="Web Share"></a>
+	</div>
+	</div><!-- .entry-footer -->
+
+</article><!-- #post-## -->
+
+	<div class="wp">
+		<nav class="navigation post-navigation" role="navigation">
+			<a data-track='PostNav,Click,Prev' class='prev' href="https://c7sky.com/get-tree-like-array-of-wordpress-nav-menu.html" rel="prev"><span class="meta-nav"><i class="arrow"></i><span class="text">上一篇</span></span><strong>获取 WordPress 菜单的树形结构数组（对象）</strong></a><a data-track='PostNav,Click,Next' class='next' href="https://c7sky.com/docker-1-12-config-direct-lvm.html" rel="next"><span class="meta-nav"><i class="arrow"></i><span class="text">下一篇</span></span><strong>Docker 1.12 配置 direct-lvm</strong></a>		</nav><!-- .navigation -->
+	</div>
+	<div class='yarpp-related'>
+
+
+<section id="related-posts">
+	<h3>你可能感兴趣</h3>
+	<div class="related-posts-body">
+		<ul class="size-5">
+						<li>
+				<a href="https://c7sky.com/docker-1-12-config-direct-lvm.html" rel="bookmark" data-track="RelatedPosts,Click,Link-0">
+					<img src="//img.c7sky.com/2018/06/lvm_banner.png" loading="lazy"/>					<span>Docker 1.12 配置 direct-lvm</span>
+				</a>
+			</li>
+						<li>
+				<a href="https://c7sky.com/configuring-calico.html" rel="bookmark" data-track="RelatedPosts,Click,Link-1">
+					<img src="//img.c7sky.com/2018/06/calico_banner.png" loading="lazy"/>					<span>Calico 搭建配置</span>
+				</a>
+			</li>
+						<li>
+				<a href="https://c7sky.com/docker-calico-consul-consul-template-registrator-nginx.html" rel="bookmark" data-track="RelatedPosts,Click,Link-2">
+					<img src="//img.c7sky.com/2018/06/consul_banner.png" loading="lazy"/>					<span>基于 Docker 环境及 Calico 网络的 Consul + Consul Template + Registrator + nginx 容器服务注册和发现</span>
+				</a>
+			</li>
+						<li>
+				<a href="https://c7sky.com/flash-preloader-as2-and-as3.html" rel="bookmark" data-track="RelatedPosts,Click,Link-3">
+					<img src="//img.c7sky.com/photobucket/flash_preloader.png" loading="lazy"/>					<span>最基本的 Flash 预加载进度条代码（AS2&#038;AS3）</span>
+				</a>
+			</li>
+						<li>
+				<a href="https://c7sky.com/htaccess-guide.html" rel="bookmark" data-track="RelatedPosts,Click,Link-4">
+					<img src="//img.c7sky.com/photobucket/htaccess-guide_zps3c591785.jpg" loading="lazy"/>					<span>.htaccess 文件使用手册</span>
+				</a>
+			</li>
+					</ul>
+	</div>
+</section>
+</div>
+
+
+<section id="comments" class="comments-area">
+	<div class="wp">
+		<div class="ads ads-comments" itemscope itemtype="http://schema.org/WPAdBlock">
+	<ins class="adsbygoogle"
+	     style="display:block"
+	     data-ad-client="ca-pub-5928286935473149"
+	     data-ad-slot="2656630153"
+	     data-ad-format="horizontal"></ins>
+</div>
+
+				<h2 class="comments-title">1 条评论</h2>
+						<div id="respond" class="comment-respond">
+			<h3 id="reply-title" class="comment-reply-title"><span>发表评论</span> <small><a rel="nofollow" id="cancel-comment-reply-link" href="/building-etcd-cluster.html#respond" style="display:none;">取消回复</a></small></h3>				<form action="https://c7sky.com/wp-comments-post.php" method="post" id="commentform" class="comment-form">
+											<div class="author-info guest"><img src="//gravatar.com/avatar/?d=mm&s=100" width="100" class="avatar"></div>
+										<div class="comment-form-main">
+						<div class="comment-textarea-wrapper">
+							<p class="comment-form-comment"><label for="comment">评论</label> <textarea id="comment" name="comment" cols="45" rows="8"  aria-required="true" required="required" placeholder="评论…"></textarea></p>							<div class="comment-form-toolbar">
+																<i class="icon-smilies" title="表情" data-track="CommentForm,Click,Smilies"></i>
+								<div class="comment-smilies">
+<script>window._c7skySmileySettings = {"smilies":{":smile:":"\ud83d\ude42",":sad:":"\ud83d\ude41",":oops:":"\ud83d\ude33",":shock:":"\ud83d\ude2f",":o":"\ud83d\ude2e",":cry:":"\ud83d\ude25",":x":"\ud83d\ude21",":razz:":"\ud83d\ude1b",":???:":"\ud83d\ude15",":|":"\ud83d\ude10",":cool:":"\ud83d\ude0e",";-)":"\ud83d\ude09",":twisted:":"\ud83d\ude08",":lol:":"\ud83d\ude06",":grin:":"\ud83d\ude00"},"src_url":"https:\/\/c7sky.com\/wp-includes\/images\/smilies\/"}</script>
+
+</div>
+															</div>
+						</div>
+
+													<div class="comment-form-fields">
+							<p class="comment-form-author"><label for="author">昵称</label>  <span class="required">*</span><input id="author" name="author" type="text" value="" size="30" aria-required='true' required='required' placeholder="昵称" /></p>
+<p class="comment-form-email"><label for="email">邮箱</label>  <span class="required">*</span><input id="email" name="email" type="email" value="" size="30" aria-describedby="email-notes" aria-required='true' required='required' placeholder="邮箱" /></p>
+<p class="comment-form-url"><label for="url">网站</label> <input id="url" name="url" type="url" value="" size="30" placeholder="网站" /></p>
+							</div>
+						
+						<p class="form-submit"><button name="submit" type="submit" id="submit" class="submit" title="发表评论"><span class="icon"></span></button> <input type='hidden' name='comment_post_ID' value='1148' id='comment_post_ID' />
+<input type='hidden' name='comment_parent' id='comment_parent' value='0' />
+</p>					</div>
+					<div class="comment-form-extra">
+						<p><input type="checkbox" name="comment_mail_notify" id="comment_mail_notify" value="comment_mail_notify" checked="checked" style="width: auto;" /><label for="comment_mail_notify">有人回复时邮件通知我</label></p>					</div>
+				</form>
+					</div><!-- #respond -->
+				
+		
+		<ul class="comment-list">
+					<li id="comment-22228" class="comment even thread-even depth-1" itemprop="comment" itemscope itemtype="http://schema.org/Comment">
+			<article id="div-comment-22228" class="comment-body">
+				<footer class="comment-meta">
+					<div class="comment-author vcard">
+						<img alt='' src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" data-src='https://gravatar.loli.net/avatar/f2a069cd224a92b31b2415c19d5e944a?s=50&#038;d=mm&#038;r=g' data-srcset='https://gravatar.loli.net/avatar/f2a069cd224a92b31b2415c19d5e944a?s=100&#038;d=mm&#038;r=g 2x' class='lazyload avatar avatar-50 photo' height='50' width='50' />						<b class="fn" itemprop="author">x</b>
+					</div><!-- .comment-author -->
+
+					<div class="comment-metadata">
+												<a href="https://c7sky.com/building-etcd-cluster.html#comment-22228" itemprop="url">
+							<time datetime="2019-08-08T17:02:03+00:00" itemprop="datePublished">2019-08-08</time>
+						</a>
+					</div><!-- .comment-metadata -->
+
+									</footer><!-- .comment-meta -->
+
+				<div class="comment-content" itemprop="text">
+					<p>这文章写的真标准</p>
+				</div><!-- .comment-content -->
+
+				<div class="comment-actions">
+																<a href="#commentform" title="" onclick="document.getElementById('comment').focus();document.getElementById('comment').value += '&lt;a href=&quot;#comment-22228&quot;&gt;@x &lt;/a&gt;'">@TA</a><a rel='nofollow' class='comment-reply-link' href='https://c7sky.com/building-etcd-cluster.html?replytocom=22228#respond' onclick='return addComment.moveForm( "div-comment-22228", "22228", "respond", "1148" )' aria-label='回复给x'>回复</a>									</div><!-- .comment-actions -->
+			</article><!-- .comment-body -->
+	</li><!-- #comment-## -->
+		</ul><!-- .comment-list -->
+
+		
+			</div>
+</section><!-- #comments -->
+	</main><!-- #main -->
+
+<section id="newsletter">
+	<div class="envelope wp">
+		<div class="inner">
+
+			<form class="subscribe" action="https://c7sky.us7.list-manage.com/subscribe/post?u=13f6640a9d85db60f06767b7e&amp;id=626ca8c1c6" target="_blank" method="post" data-track-submit="Newsletter,Submit,Subscribe">
+				<h3 class="title">订阅邮件列表</h3>
+				<small class="desc">第一时间 get 新文章</small>
+				<input type="email" name="EMAIL" class="email" placeholder="your@email.com" required>
+				<input type="submit" class="submit" value="订阅">
+				<input type="hidden" name="b_13f6640a9d85db60f06767b7e_626ca8c1c6" value="">
+			</form><!-- .subscribe -->
+
+			<div class="promo">
+				<div class="slides">
+					<ul class="list">
+						<li class="item">
+							<a href="//c7sky.com/wordpress-theme-c7v5.html" data-track="Newsletter,Click,C7V5">
+								<img src="//cdn.c7sky.com/res/c7v5.jpg" alt="原创 WordPress 主题 C7V5 [扁平化|响应式|HTML5]" lazyload="on">
+							</a>
+						</li>
+						<li class="item">
+							<a href="//c7sky.com/domainflag.html" data-track="Newsletter,Click,DomainFlag">
+								<img src="//cdn.c7sky.com/res/domainflag.jpg" alt="DomainFlag - 轻量、好用的 Chrome SEO 扩展" lazyload="on">
+							</a>
+						</li>
+						<li class="item">
+							<a href="//c7sky.com/javascript-and-css-code-beautifier.html" data-track="Newsletter,Click,CodeBeautifier">
+								<img src="//cdn.c7sky.com/res/codebeautifier.jpg" alt="Chrome 代码高亮扩展 - JavaScript and CSS Code Beautifier" lazyload="on">
+							</a>
+						</li>
+						<li class="item">
+							<a href="//c7sky.com/web-extension-qrcode.html" data-track="Newsletter,Click,QRCode">
+								<img src="//cdn.c7sky.com/res/qrcode.jpg" alt="【WebExtension】QR Code 二维码（生成及识别）" lazyload="on">
+							</a>
+						</li>
+						<!--  li class="item">
+							<a href="//c7sky.com/chrome-speeddial2-cn.html" data-track="Newsletter,Click,SpeedDial2">
+								<img src="//cdn.c7sky.com/res/speeddial2cn.jpg" alt="Chrome 最佳新标签扩展 - Speed Dial 2 中文版" lazyload="on">
+							</a>
+						</li-->
+					</ul>
+				</div>
+				<nav class="slides-nav">
+					<span class="current"></span>
+					<span></span>
+					<span></span>
+					<span></span>
+					<span></span>
+				</nav>
+			</div><!-- .promo -->
+
+		</div><!-- .inner -->
+	</div><!-- .envelope -->
+</section><!-- #newsletter -->
+<nav id="breadcrumbs">
+	<ol class="container" itemprop="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList">
+		<li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a href="https://c7sky.com/" itemprop="item" data-track="Breadcrumbs,Click,Home"><span itemprop="name">首页</span></a><meta itemprop="position" content="1" /></li>
+		 › <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem"><a href="https://c7sky.com/category/tech" itemprop="item" data-track="Breadcrumbs,Click,Category"><span itemprop="name">技术笔记</span></a><meta itemprop="position" content="2" /></li> › <li>搭建 etcd 集群</li>
+	</ol>
+</nav><!-- #breadcrumbs -->
+	
+		<div id="get-sidebar" title="加载边栏" data-track="Sidebar,Click,Get"></div>
+
+	
+<footer id="footer" role="contentinfo" itemscope itemtype="http://schema.org/WPFooter">
+	<div class="container">
+		<div class="follow">
+			<a href="http://weibo.com/cople" target="_blank" class="weibo" title="微博" data-track="Follow,Click,Weibo"></a>
+			<a href="http://list.qq.com/cgi-bin/qf_invite?id=cb40f8b2f2b9fd2ad34bbffcd589f93891d6b2629688b770" target="_blank" class="mail" title="邮件订阅" data-track="Follow,Click,Email"></a>
+			<a href="https://c7sky.com/feed" target="_blank" class="rss" title="RSS" data-track="Follow,Click,RSS"></a>
+		</div><!-- .follow -->
+
+		<div class="footer-links">
+			<ul><li id="menu-item-993" class="menu-item"><a href="https://c7sky.com/about">关于</a></li><li id="menu-item-992" class="menu-item"><a href="https://c7sky.com/links">友链</a></li><li id="menu-item-994" class="menu-item"><a href="https://c7sky.com/guestbook">留言簿</a></li><li id="menu-item-704" class="menu-item"><a target="_blank" href="http://tool.c7sky.com/">工具箱</a></li><li id="menu-item-1089" class="menu-item"><a target="_blank" href="http://t.cn/E7U4HSV">阿里云优惠券</a></li></ul>			<ul>
+				<li class="copyright">&copy; 2019 小影志</li>
+				<li class="icp"><a href="http://www.beian.miit.gov.cn" rel="nofollow noreferrer">沪ICP备15044313号</a></li>
+			</ul>
+		</div>
+
+		<a id="backtop" href="#top" title="返回顶部" data-track="Footer,Click,BackTop"></a>
+	</div><!-- .container -->
+</footer><!-- #footer -->
+
+<div id="m-panel">
+	<ul id="m-nav" class="m-nav"><li id="menu-item-999" class="menu-item"><a href="https://c7sky.com/category/wordpress">WordPress</a></li>
+<li id="menu-item-996" class="menu-item"><a href="https://c7sky.com/category/software">实用软件</a></li>
+<li id="menu-item-997" class="menu-item"><a href="https://c7sky.com/category/website">网站推介</a></li>
+<li id="menu-item-1000" class="menu-item"><a href="https://c7sky.com/category/webdev">前端开发</a></li>
+<li id="menu-item-998" class="menu-item"><a href="https://c7sky.com/category/free">免费资源</a></li>
+</ul><!-- .m-nav -->
+
+	<ul id="m-subnav" class="m-subnav"><li id="menu-item-1005" class="menu-item"><a href="https://c7sky.com/category/design">设计美化</a></li>
+<li id="menu-item-1001" class="menu-item"><a href="https://c7sky.com/category/tech">技术笔记</a></li>
+<li id="menu-item-1004" class="menu-item"><a href="https://c7sky.com/category/media">电影音乐</a></li>
+<li id="menu-item-1006" class="menu-item"><a href="https://c7sky.com/category/game">趣味游戏</a></li>
+<li id="menu-item-1098" class="menu-item"><a href="https://c7sky.com/category/fun">搞笑集锦</a></li>
+<li id="menu-item-1099" class="menu-item"><a href="https://c7sky.com/category/misc/minutes">博客记录</a></li>
+</ul><!-- .m-subnav -->
+
+	<div class="m-follow">
+		<a href="http://weibo.com/cople" target="_blank" class="weibo" title="微博" data-track="Mpanel,Click,Weibo"></span></a>
+		<a href="http://list.qq.com/cgi-bin/qf_invite?id=cb40f8b2f2b9fd2ad34bbffcd589f93891d6b2629688b770" target="_blank" class="mail" title="邮件订阅" data-track="Mpanel,Click,Email"></span></a>
+		<a href="https://c7sky.com/feed" target="_blank" class="rss" title="RSS" data-track="Mpanel,Click,RSS"></span></a>
+	</div><!-- .m-follow -->
+
+</div><!-- #m-panel -->
+
+<script type='text/javascript' src='https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js'></script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var viewsCacheL10n = {"admin_ajax_url":"https:\/\/c7sky.com\/wp-admin\/admin-ajax.php","post_id":"1148"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='https://c7sky.com/wp-content/plugins/wp-postviews/postviews-cache.js?ver=1.68'></script>
+<script type='text/javascript' src='https://c7sky.com/wp-includes/js/comment-reply.min.js?ver=4.9.8'></script>
+<script type='text/javascript' src='//cdn.c7sky.com/c7v5/js/vendor.js'></script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var C7V5 = {"ajax_url":"https:\/\/c7sky.com\/wp-admin\/admin-ajax.php"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='//cdn.c7sky.com/c7v5/js/script.min.js?ver=1901121339'></script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-12512426-3', 'auto');
+  ga('send', 'pageview');
+</script>
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "//hm.baidu.com/hm.js?04c9728e93e4a881a9d4e86d3ef1d459";
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+</body>
+</html>
+
+<!-- Dynamic page generated in 1.925 seconds. -->
+<!-- Cached page generated by WP-Super-Cache on 2020-08-24 11:13:09 -->
+
+<!-- Compression = gzip -->
